@@ -1,0 +1,367 @@
+<title>파라메트릭 실험실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* 레이아웃: 왼쪽은 계측기 패널, 오른쪽은 전면 캔버스. 휴대폰에선 캔버스 위, 패널 아래 */
+:root{
+  --bg:#080a0e; --panel:#0e1218; --line:#1e2631; --fg:#dfe4ec; --dim:#7f8a9b;
+  --accent:#f2a541; --accent-ink:#1b1305;
+  --f-disp:'Chakra Petch','IBM Plex Sans KR',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);overflow:hidden}
+.app{display:grid;grid-template-columns:340px minmax(0,1fr);height:100%}
+.panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding-block:20px 28px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:18px;display:flex;flex-direction:column;gap:22px}
+.brand h1{font-family:var(--f-disp);font-weight:700;font-size:22px;letter-spacing:.02em;margin:0;line-height:1.1}
+.brand p{margin:6px 0 0;color:var(--dim);font-size:12.5px;line-height:1.5}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>h2{margin:0;font-family:var(--f-mono);font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+.sec>h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.group{display:flex;flex-direction:column;gap:6px}
+.group b{font-size:11px;font-weight:500;color:var(--dim)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:inherit;font-size:13px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--dim)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.actions{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:6px}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:10px 8px;border-radius:4px;border:1px solid var(--line);background:#141a22;color:var(--fg);cursor:pointer}
+.btn:hover{border-color:var(--dim)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.row label{font-size:12.5px}
+.row output{font-family:var(--f-mono);font-size:12px;color:var(--accent);font-variant-numeric:tabular-nums}
+.row input[type=range]{grid-column:1/-1}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--fg);margin-top:-5px;border:none}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);border:none}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--accent)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer}
+.toggle input{accent-color:var(--accent);width:15px;height:15px}
+.pals{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pal{height:26px;border-radius:3px;border:2px solid transparent;cursor:pointer;padding:0}
+.pal[aria-pressed="true"]{border-color:var(--fg)}
+.palname{font-size:11.5px;color:var(--dim)}
+.keys{font-size:11.5px;color:var(--dim);line-height:1.7}
+.keys kbd{font-family:var(--f-mono);font-size:10.5px;border:1px solid var(--line);border-radius:3px;padding:1px 5px;color:var(--fg)}
+.stage{position:relative;min-width:0;background:var(--bg)}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+.hud{position:absolute;left:max(18px,env(safe-area-inset-left,0px));top:16px;right:18px;pointer-events:none;display:flex;flex-direction:column;gap:4px;max-width:62ch}
+.hud .name{font-family:var(--f-disp);font-weight:700;font-size:clamp(20px,3vw,30px);letter-spacing:.02em;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+.hud .about{font-size:12.5px;color:#aeb7c4;line-height:1.55;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+.hud .paused{font-family:var(--f-mono);font-size:11px;color:var(--accent);letter-spacing:.12em}
+@media (max-width:780px){
+  body{overflow:auto}
+  .app{grid-template-columns:1fr;grid-template-rows:62vh auto;height:auto}
+  .stage{order:-1;height:62vh}
+  .panel{border-right:none;border-top:1px solid var(--line);overflow:visible;padding-right:max(16px,env(safe-area-inset-right,0px));padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .hud .about{font-size:11.5px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="panel">
+    <div class="brand">
+      <h1>파라메트릭 실험실</h1>
+      <p>수식과 물리 법칙 하나에 값 몇 개. 값을 바꿀 때마다 다른 그림이 나옵니다.</p>
+    </div>
+
+    <section class="sec">
+      <h2>장면</h2>
+      <div id="modes" class="sec" style="gap:12px"></div>
+    </section>
+
+    <section class="sec">
+      <div class="actions">
+        <button class="btn primary" id="rnd" type="button">무작위 값</button>
+        <button class="btn" id="redo" type="button">다시 그리기</button>
+        <button class="btn" id="pause" type="button">정지</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="auto"> 자동 변주 (그림이 끝나거나 15초마다 새 값)</label>
+    </section>
+
+    <section class="sec">
+      <h2>매개변수</h2>
+      <div id="params" class="sec" style="gap:12px"></div>
+    </section>
+
+    <section class="sec">
+      <h2>표현</h2>
+      <div class="pals" id="pals"></div>
+      <div class="palname" id="palname"></div>
+      <div class="row">
+        <label for="trail">잔상 길이</label><output id="trailOut"></output>
+        <input type="range" id="trail" min="0" max="100" step="1">
+      </div>
+      <label class="toggle"><input type="checkbox" id="glow"> 빛 겹침 (겹친 선이 밝아짐)</label>
+    </section>
+
+    <div class="keys"><kbd>R</kbd> 무작위 값 &nbsp; <kbd>Space</kbd> 정지/재생 &nbsp; <kbd>C</kbd> 다시 그리기</div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hud"><div class="name" id="hudName"></div><div class="about" id="hudAbout"></div><div class="paused" id="hudPaused" hidden>일시정지</div></div>
+  </main>
+</div>
+
+<script>
+(()=>{
+const TAU=Math.PI*2, cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const BG='rgb(8,10,14)';
+let W=800,H=600;
+
+/* ---------- 팔레트 ---------- */
+const PALETTES={
+  '오로라':['#0d3b66','#1aa39a','#7fe08a','#f6f39b'],
+  '용광로':['#3b0b24','#b5223b','#f2762e','#ffd770'],
+  '심해':['#24166b','#3d5fe0','#41c6ea','#d4fbff'],
+  '네온':['#ff2e88','#9d5cff','#2ee6ff','#c2ff4d'],
+  '먹과 금':['#5c5348','#a9916a','#ead196','#fff7e0'],
+};
+let palName='오로라', LUT=[];
+function hex(h){return [1,3,5].map(i=>parseInt(h.slice(i,i+2),16))}
+function buildLUT(){const st=PALETTES[palName].map(hex);LUT=[];for(let i=0;i<256;i++){const t=i/255*(st.length-1),k=Math.min(st.length-2,Math.floor(t)),f=t-k;LUT.push(st[k].map((c,j)=>Math.round(c+(st[k+1][j]-c)*f)))}}
+const pal=(t,a=1)=>{t=Math.max(0,Math.min(1,t));const c=LUT[t*255|0];return `rgba(${c[0]},${c[1]},${c[2]},${a})`};
+const cyc=(t,a=1)=>{t=((t%1)+1)%1;return pal(t<.5?t*2:2-t*2,a)};
+
+/* ---------- 포인터 ---------- */
+const ptr={x:0,y:0,dx:0,dy:0,down:false};
+function ppos(e){const r=cv.getBoundingClientRect();return [e.clientX-r.left,e.clientY-r.top]}
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);[ptr.x,ptr.y]=ppos(e);ptr.dx=ptr.dy=0;ptr.down=true});
+cv.addEventListener('pointermove',e=>{const [x,y]=ppos(e);ptr.dx=x-ptr.x;ptr.dy=y-ptr.y;ptr.x=x;ptr.y=y});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{ptr.down=false}));
+
+/* ---------- 장면 정의 ---------- */
+const prm=(k,l,min,max,step,v,o={})=>({k,l,min,max,step,v,...o});
+const MODES={
+harmono:{name:'하모노그래프',g:'수학·수열',trail:100,glow:true,
+  about:'감쇠하는 진자 네 개를 겹친 곡선. x = e^(−dt)·[sin(f₁t+φ₁)+sin(f₂t)], y = e^(−dt)·[sin(f₃t+φ₂)+sin(f₄t)]',
+  params:[prm('f1','주파수 f₁',1,8,.01,2),prm('f2','주파수 f₂',1,8,.01,3.01),prm('f3','주파수 f₃',1,8,.01,3),prm('f4','주파수 f₄',1,8,.01,2.02),
+    prm('p1','위상 φ₁',0,3.14,.01,1.57),prm('p2','위상 φ₂',0,3.14,.01,.6),prm('d','감쇠 d',0,.02,.0005,.003,{r:[.001,.007]}),
+    prm('sp','그리기 속도',1,60,1,20,{live:1,fix:1}),prm('w','선 굵기',.3,3,.1,.8,{live:1,fix:1})],
+  pt(t,p){const A=Math.min(W,H)*.23,e=Math.exp(-p.d*t);return [W/2+A*e*(Math.sin(p.f1*t+p.p1)+Math.sin(p.f2*t)),H/2+A*e*(Math.sin(p.f3*t+p.p2)+Math.sin(p.f4*t))]},
+  init(s,p){s.t=0;s.prev=this.pt(0,p)},
+  frame(s,p){if(Math.exp(-p.d*s.t)<.02){s.done=1;return}ctx.lineWidth=p.w;ctx.lineCap='round';
+    for(let i=0;i<p.sp;i++){s.t+=.02;const q=this.pt(s.t,p);ctx.strokeStyle=cyc(s.t/140,.55);ctx.beginPath();ctx.moveTo(s.prev[0],s.prev[1]);ctx.lineTo(q[0],q[1]);ctx.stroke();s.prev=q}}
+},
+mult:{name:'곱셈 원',g:'수학·수열',clear:true,trail:0,glow:true,
+  about:'원 위의 점 i를 (i × k) mod n 번째 점과 잇습니다. k가 천천히 변하며 카디오이드(k=2), 네프로이드(k=3), 꽃잎이 차례로 나타납니다.',
+  params:[prm('n','점 개수',20,800,1,300,{r:[120,600]}),prm('k','시작 배수 k',2,100,.01,2,{r:[2,40]}),prm('sp','k 변화 속도',0,.05,.0005,.004,{live:1,r:[.001,.01]}),
+    prm('al','선 밝기',.05,1,.01,.45,{live:1}),prm('w','선 굵기',.2,2,.1,.6,{live:1,fix:1}),prm('hue','색 회전',0,1,.01,0,{live:1})],
+  init(s,p){s.k=p.k},
+  frame(s,p){s.k+=p.sp;const R=Math.min(W,H)*.43,cx=W/2,cy=H/2+10,n=p.n,B=24;ctx.lineWidth=p.w;
+    ctx.strokeStyle=pal(.5,.25);ctx.beginPath();ctx.arc(cx,cy,R,0,TAU);ctx.stroke();
+    for(let b=0;b<B;b++){const i0=Math.floor(b*n/B),i1=Math.floor((b+1)*n/B);ctx.strokeStyle=cyc(b/B+p.hue,p.al);ctx.beginPath();
+      for(let i=i0;i<i1;i++){const a=i/n*TAU+Math.PI/2,c=i*s.k/n*TAU+Math.PI/2;ctx.moveTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);ctx.lineTo(cx+Math.cos(c)*R,cy+Math.sin(c)*R)}ctx.stroke()}
+    ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(223,228,236,.85)';ctx.font='600 13px "JetBrains Mono", monospace';ctx.fillText('k = '+s.k.toFixed(3)+'   n = '+n,18,H-18)}
+},
+collatz:{name:'콜라츠 해초',g:'수학·수열',trail:100,glow:true,
+  about:'각 수에서 1까지 가는 콜라츠 수열(짝수면 ÷2, 홀수면 ×3+1)을 1부터 거꾸로 따라가며 짝수·홀수에서 서로 다른 각도로 꺾습니다.',
+  params:[prm('N','그릴 수의 개수',100,10000,100,4000,{r:[1500,8000]}),prm('ae','짝수 꺾임(rad)',-.3,.3,.001,.09),prm('ao','홀수 꺾임(rad)',-.4,.4,.001,-.17),
+    prm('len','마디 길이',1,14,.5,5,{r:[3,8]}),prm('ox','뿌리 위치',.05,.95,.01,.35,{r:[.2,.8]}),prm('hd','뿌리 방향',-1.5,1.5,.01,.25,{r:[-.8,.8]}),
+    prm('al','선 밝기',.03,.6,.01,.12,{live:1,r:[.06,.25]}),prm('sp','그리기 속도',5,400,5,60,{live:1,fix:1})],
+  init(s){s.i=2},
+  frame(s,p){ctx.lineWidth=1;const S=Math.min(W,H)/700;
+    for(let c=0;c<p.sp;c++,s.i++){if(s.i>p.N){s.done=1;return}let n=s.i;const seq=[n];while(n!==1){n=n%2?3*n+1:n/2;seq.push(n)}
+      let x=W*p.ox,y=H*.98,a=-Math.PI/2+p.hd;ctx.strokeStyle=cyc(seq.length/200,p.al);ctx.beginPath();ctx.moveTo(x,y);
+      for(let j=seq.length-2;j>=0;j--){a+=seq[j]%2?p.ao:p.ae;x+=Math.cos(a)*p.len*S;y+=Math.sin(a)*p.len*S;ctx.lineTo(x,y)}ctx.stroke()}}
+},
+dpend:{name:'이중 진자',g:'물리',trail:82,glow:true,
+  about:'아주 조금씩 다른 각도에서 출발한 이중 진자 여러 개. 처음엔 한 몸처럼 움직이다가 어느 순간 혼돈으로 흩어집니다.',
+  params:[prm('m1','위 추 질량',.5,5,.1,2),prm('m2','아래 추 질량',.5,5,.1,1),prm('r','팔 길이 비율',.2,.8,.01,.5),prm('g','중력 g',1,30,.1,9.8),
+    prm('th','시작 각도(rad)',.3,3.1,.01,2.3,{r:[1.2,3]}),prm('n','진자 수',1,40,1,16,{r:[6,30]}),prm('eps','각도 차이',0,.05,.0005,.002,{r:[.0005,.01]}),
+    prm('sp','속도',1,8,1,3,{live:1,fix:1}),prm('arm','팔 보이기 (0/1)',0,1,1,1,{live:1,fix:1})],
+  init(s,p){s.P=[];for(let i=0;i<p.n;i++)s.P.push({a:p.th+i*p.eps,b:p.th,wa:0,wb:0})},
+  step(q,p,dt){const m1=p.m1,m2=p.m2,g=p.g,L1=p.r,L2=1-p.r,d=q.a-q.b,den=2*m1+m2-m2*Math.cos(2*d);
+    const aa=(-g*(2*m1+m2)*Math.sin(q.a)-m2*g*Math.sin(q.a-2*q.b)-2*Math.sin(d)*m2*(q.wb*q.wb*L2+q.wa*q.wa*L1*Math.cos(d)))/(L1*den);
+    const ab=(2*Math.sin(d)*(q.wa*q.wa*L1*(m1+m2)+g*(m1+m2)*Math.cos(q.a)+q.wb*q.wb*L2*m2*Math.cos(d)))/(L2*den);
+    q.wa+=aa*dt;q.wb+=ab*dt;q.a+=q.wa*dt;q.b+=q.wb*dt},
+  frame(s,p){const S=Math.min(W,H)*.44,ox=W/2,oy=H/2,L1=p.r,L2=1-p.r;
+    const tip=q=>[ox+S*(L1*Math.sin(q.a)+L2*Math.sin(q.b)),oy+S*(L1*Math.cos(q.a)+L2*Math.cos(q.b))];
+    s.P.forEach((q,i)=>{const c=p.n>1?i/(p.n-1):.5;let t=tip(q);ctx.strokeStyle=pal(.1+.9*c,.8);ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(t[0],t[1]);
+      for(let j=0;j<p.sp*4;j++){for(let k=0;k<3;k++)this.step(q,p,.0015);t=tip(q);ctx.lineTo(t[0],t[1])}ctx.stroke();
+      if(p.arm){const ex=ox+S*L1*Math.sin(q.a),ey=oy+S*L1*Math.cos(q.a);ctx.strokeStyle=pal(.1+.9*c,.18);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(ox,oy);ctx.lineTo(ex,ey);ctx.lineTo(t[0],t[1]);ctx.stroke()}})}
+},
+spring:{name:'탄성 진자',g:'물리',trail:100,glow:true,
+  about:'스프링에 매단 진자. 늘었다 줄었다 하는 진동과 좌우로 흔들리는 진동이 서로 에너지를 주고받으며 장미 무늬를 그립니다.',
+  params:[prm('k','스프링 상수 k',4,80,.5,22),prm('g','중력 g',1,20,.1,9.8),prm('r0','처음 길이',.5,2,.01,1.35),prm('th','시작 각도(rad)',-2.5,2.5,.01,1.1),
+    prm('damp','공기 저항',0,.03,.0005,.001,{r:[0,.004]}),prm('n','진자 수',1,8,1,1,{r:[1,4]}),prm('sp','속도',1,12,1,4,{live:1,fix:1}),prm('w','선 굵기',.3,3,.1,.9,{live:1,fix:1})],
+  init(s,p){s.P=[];for(let i=0;i<p.n;i++)s.P.push({r:p.r0+i*.035,t:p.th,vr:0,vt:0})},
+  frame(s,p){const S=Math.min(W,H)*.22,ox=W/2,oy=H*.3,dt=.002;ctx.lineWidth=p.w;
+    const pos=q=>[ox+q.r*Math.sin(q.t)*S,oy+q.r*Math.cos(q.t)*S];
+    s.P.forEach((q,i)=>{let a=pos(q);ctx.strokeStyle=cyc(i/8+(s.f=(s.f||0)+.0004),.6);ctx.beginPath();ctx.moveTo(a[0],a[1]);
+      for(let j=0;j<p.sp*4;j++){for(let k=0;k<4;k++){const ar=q.r*q.vt*q.vt+p.g*Math.cos(q.t)-p.k*(q.r-1)-p.damp*30*q.vr,at=(-p.g*Math.sin(q.t)-2*q.vr*q.vt)/q.r-p.damp*30*q.vt;
+        q.vr+=ar*dt;q.vt+=at*dt;q.r=Math.max(.05,q.r+q.vr*dt);q.t+=q.vt*dt}a=pos(q);ctx.lineTo(a[0],a[1])}ctx.stroke()})}
+},
+wave:{name:'파동 간섭',g:'물리',clear:true,noGlow:true,trail:0,
+  about:'원형으로 놓인 파원들이 만드는 간섭무늬. 벽 반사를 켜면 네 벽 너머의 거울상 파원이 더해집니다. 화면을 끌면 파원 묶음이 따라옵니다.',
+  params:[prm('n','파원 수',1,8,1,3),prm('rad','배치 반지름',0,.45,.01,.16,{r:[.03,.3]}),prm('lam','파장(px)',6,90,1,26,{r:[10,50]}),prm('sp','진행 속도',0,6,.1,2,{live:1,r:[1,4]}),
+    prm('ph','파원 간 위상 차',0,1,.01,0),prm('dec','거리 감쇠',0,3,.05,.6),prm('mir','벽 반사 (0/1)',0,1,1,0),prm('con','대비',.5,5,.1,1.6,{live:1}),prm('res','픽셀 크기',2,8,1,4,{fix:1})],
+  init(s){s.t=0;s.cx=W/2;s.cy=H/2},
+  frame(s,p){s.t+=p.sp*.05;const R=p.res,cw=Math.ceil(W/R),ch=Math.ceil(H/R);
+    if(!s.oc||s.oc.width!==cw||s.oc.height!==ch){s.oc=document.createElement('canvas');s.oc.width=cw;s.oc.height=ch;s.ox=s.oc.getContext('2d');s.img=s.ox.createImageData(cw,ch)}
+    if(ptr.down){s.cx=ptr.x;s.cy=ptr.y}
+    const rr=p.rad*Math.min(W,H),src=[];for(let i=0;i<p.n;i++){const a=i/p.n*TAU-Math.PI/2;src.push([s.cx+Math.cos(a)*rr,s.cy+Math.sin(a)*rr,i*p.ph*TAU])}
+    let all=src;if(p.mir){all=[];for(const q of src)all.push(q,[-q[0],q[1],q[2]],[2*W-q[0],q[1],q[2]],[q[0],-q[1],q[2]],[q[0],2*H-q[1],q[2]])}
+    const k=TAU/p.lam,d=p.dec*4/Math.min(W,H),data=s.img.data,norm=1/Math.sqrt(all.length),m=all.length;let o=0;
+    for(let y=0;y<ch;y++){const py=y*R+R/2;for(let x=0;x<cw;x++){const px=x*R+R/2;let v=0;
+      for(let j=0;j<m;j++){const q=all[j],dx=px-q[0],dy=py-q[1],r=Math.sqrt(dx*dx+dy*dy);v+=Math.sin(k*r-s.t+q[2])/(1+r*d)}
+      v=Math.tanh(v*norm*p.con);const c=LUT[(v*.5+.5)*255|0];data[o]=c[0];data[o+1]=c[1];data[o+2]=c[2];data[o+3]=255;o+=4}}
+    s.ox.putImageData(s.img,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(s.oc,0,0,W,H);
+    ctx.fillStyle='rgba(255,255,255,.9)';src.forEach(q=>{ctx.beginPath();ctx.arc(q[0],q[1],3,0,TAU);ctx.fill()})}
+},
+billiard:{name:'타원 당구',g:'물리',trail:100,glow:true,
+  about:'타원 거울 안에서 반사되는 빛줄기 묶음. 입사각 = 반사각 규칙 하나로 초점 주변에 빛이 모이는 카우스틱이 생깁니다.',
+  params:[prm('e','이심률',0,.95,.01,.6),prm('n','광선 수',1,80,1,30,{r:[8,60]}),prm('spr','광선 퍼짐(rad)',0,.6,.005,.08,{r:[.01,.3]}),
+    prm('ang','발사 각도(rad)',0,6.28,.01,1.1),prm('x0','출발 위치',-.9,.9,.01,.25),prm('sp','속도',1,40,1,12,{live:1,fix:1}),prm('al','선 밝기',.05,1,.01,.25,{live:1,r:[.12,.4]})],
+  init(s,p){const e=Math.sqrt(1-p.e*p.e);s.a=Math.min(W*.46,H*.44/e);s.b=s.a*e;s.f=0;s.R=[];
+    for(let i=0;i<p.n;i++){const t=p.ang+(p.n>1?(i/(p.n-1)-.5)*p.spr:0);s.R.push({x:p.x0*s.a*.9,y:0,vx:Math.cos(t),vy:Math.sin(t)})}
+    ctx.strokeStyle=pal(.9,.45);ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(W/2,H/2,s.a,s.b,0,0,TAU);ctx.stroke()},
+  frame(s,p){if(++s.f>2500){s.done=1;return}const a=s.a,b=s.b,cx=W/2,cy=H/2,L=6,in_=(x,y)=>x*x/(a*a)+y*y/(b*b)<1;ctx.lineWidth=.7;
+    s.R.forEach((r,i)=>{ctx.strokeStyle=pal(p.n>1?i/(p.n-1):.6,p.al);ctx.beginPath();ctx.moveTo(cx+r.x,cy+r.y);
+      for(let j=0;j<p.sp;j++){let nx=r.x+r.vx*L,ny=r.y+r.vy*L;
+        if(!in_(nx,ny)){let lo=0,hi=1;for(let k=0;k<22;k++){const m=(lo+hi)/2;if(in_(r.x+r.vx*L*m,r.y+r.vy*L*m))lo=m;else hi=m}
+          nx=r.x+r.vx*L*lo;ny=r.y+r.vy*L*lo;let gx=nx/(a*a),gy=ny/(b*b);const gl=Math.hypot(gx,gy)||1;gx/=gl;gy/=gl;const dp=r.vx*gx+r.vy*gy;r.vx-=2*dp*gx;r.vy-=2*dp*gy}
+        r.x=nx;r.y=ny;ctx.lineTo(cx+nx,cy+ny)}ctx.stroke()})}
+},
+grav:{name:'중력 궤도',g:'물리',trail:80,glow:true,
+  about:'항성 하나와 서로 끌어당기는 천체들의 원반. 화면을 누르고 있으면 그 자리에 무거운 질량이 생겨 궤도를 흔듭니다.',
+  params:[prm('n','천체 수',10,300,1,140,{r:[40,220]}),prm('G','중력 상수 G',.1,3,.05,1),prm('M','항성 질량',0,3000,10,900),prm('spin','공전 속도 비율',0,1.5,.01,1,{r:[.6,1.2]}),
+    prm('disk','원반 크기',.1,.48,.01,.38),prm('ecc','원반 납작함',0,.9,.01,0),prm('soft','근접 완화',1,20,.5,6),prm('sp','속도',1,6,1,2,{live:1,fix:1})],
+  init(s,p){s.B=[];const S=Math.min(W,H);for(let i=0;i<p.n;i++){const r=S*(.04+Math.random()*(p.disk-.04)),a=Math.random()*TAU,x=Math.cos(a)*r,y=Math.sin(a)*r*(1-p.ecc),rr=Math.hypot(x,y)||1,
+    v=p.M>0?Math.sqrt(p.G*p.M/rr)*p.spin:.3*p.spin;s.B.push({x:W/2+x,y:H/2+y,vx:-y/rr*v,vy:x/rr*v,m:.5+Math.random()*2.5,c:r/(S*p.disk)})}},
+  frame(s,p){const B=s.B,n=B.length,s2=p.soft*p.soft,cx=W/2,cy=H/2;for(const b of B){b.px=b.x;b.py=b.y}
+    for(let k=0;k<p.sp;k++){for(let i=0;i<n;i++){const a=B[i];let ax=0,ay=0;
+        if(p.M>0){const dx=cx-a.x,dy=cy-a.y,d2=dx*dx+dy*dy+s2,f=p.G*p.M/(d2*Math.sqrt(d2));ax+=dx*f;ay+=dy*f}
+        if(ptr.down){const dx=ptr.x-a.x,dy=ptr.y-a.y,d2=dx*dx+dy*dy+400,f=p.G*1500/(d2*Math.sqrt(d2));ax+=dx*f;ay+=dy*f}
+        for(let j=0;j<n;j++){if(i===j)continue;const b=B[j],dx=b.x-a.x,dy=b.y-a.y,d2=dx*dx+dy*dy+s2,f=p.G*b.m/(d2*Math.sqrt(d2));ax+=dx*f;ay+=dy*f}
+        a.vx+=ax;a.vy+=ay}for(const a of B){a.x+=a.vx;a.y+=a.vy}}
+    ctx.lineWidth=1.2;for(const a of B){ctx.strokeStyle=pal(a.c,.85);ctx.beginPath();ctx.moveTo(a.px,a.py);ctx.lineTo(a.x,a.y);ctx.stroke()}
+    if(p.M>0){ctx.fillStyle=pal(1,.35);ctx.beginPath();ctx.arc(cx,cy,2+Math.sqrt(p.M)*.07,0,TAU);ctx.fill()}}
+},
+cloth:{name:'천과 스프링',g:'물리',clear:true,trail:0,glow:false,
+  about:'점과 스프링으로 엮은 천이 바람에 나부낍니다. 색은 스프링이 늘어난 정도를 나타냅니다. 화면을 끌어 천을 밀어 보세요.',
+  params:[prm('c','가로 점',8,60,1,34,{r:[15,50]}),prm('r','세로 점',6,45,1,24,{r:[10,35]}),prm('g','중력',0,1,.01,.25,{r:[.1,.6]}),prm('wind','바람 세기',0,2,.01,.7),
+    prm('gust','돌풍 주기',.2,5,.1,1.5),prm('it','스프링 강도',1,15,1,5),prm('pin','고정 간격',1,12,1,4),prm('damp','감쇠',.95,1,.001,.985,{r:[.97,.995]})],
+  init(s,p){s.t=0;const sp=Math.min(W*.78/(p.c-1),H*.68/(p.r-1));s.sp=sp;const x0=(W-sp*(p.c-1))/2-W*.05,y0=H*.14;s.P=[];s.C=[];
+    for(let j=0;j<p.r;j++)for(let i=0;i<p.c;i++){const x=x0+i*sp,y=y0+j*sp;s.P.push({x,y,px:x,py:y,pin:j===0&&(i%p.pin===0||i===p.c-1)})}
+    for(let j=0;j<p.r;j++)for(let i=0;i<p.c;i++){const id=j*p.c+i;if(i<p.c-1)s.C.push([id,id+1]);if(j<p.r-1)s.C.push([id,id+p.c])}},
+  frame(s,p){s.t+=.016;const P=s.P,wb=p.wind*.04;
+    for(const q of P){if(q.pin)continue;const vx=(q.x-q.px)*p.damp,vy=(q.y-q.py)*p.damp;q.px=q.x;q.py=q.y;
+      const gust=wb*(.6+.4*Math.sin(s.t*p.gust+q.y*.012)+.3*Math.sin(s.t*p.gust*2.3+q.x*.02));q.x+=vx+gust;q.y+=vy+p.g*.3;
+      if(ptr.down){const dx=q.x-ptr.x,dy=q.y-ptr.y,d=Math.hypot(dx,dy);if(d<70){q.x+=ptr.dx*.6*(1-d/70);q.y+=ptr.dy*.6*(1-d/70)}}}
+    for(let k=0;k<p.it;k++)for(const c of s.C){const A=P[c[0]],Bq=P[c[1]],dx=Bq.x-A.x,dy=Bq.y-A.y,d=Math.hypot(dx,dy)||1e-6,f=(d-s.sp)/d*.5;
+      if(!A.pin){A.x+=dx*f;A.y+=dy*f}if(!Bq.pin){Bq.x-=dx*f;Bq.y-=dy*f}}
+    const bins=Array.from({length:10},()=>[]);for(const c of s.C){const A=P[c[0]],Bq=P[c[1]],st=Math.hypot(Bq.x-A.x,Bq.y-A.y)/s.sp-1;bins[Math.min(9,Math.max(0,(st*12+.15)*10|0))].push(A,Bq)}
+    ctx.lineWidth=1;bins.forEach((L,i)=>{if(!L.length)return;ctx.strokeStyle=pal(.12+i/9*.88,.9);ctx.beginPath();for(let j=0;j<L.length;j+=2){ctx.moveTo(L[j].x,L[j].y);ctx.lineTo(L[j+1].x,L[j+1].y)}ctx.stroke()});
+    ptr.dx*=.5;ptr.dy*=.5}
+},
+lorenz:{name:'로렌츠 끌개',g:'혼돈·복잡계',trail:88,glow:true,
+  about:'dx/dt = σ(y−x), dy/dt = x(ρ−z)−y, dz/dt = xy−βz. 출발점이 아주 조금만 달라도 궤적이 결국 완전히 갈라집니다.',
+  params:[prm('sg','σ',1,30,.1,10,{r:[6,16]}),prm('rho','ρ',1,60,.1,28,{r:[20,45]}),prm('b','β',.5,6,.01,2.667,{r:[1.5,4]}),prm('n','궤적 수',1,16,1,6),
+    prm('eps','출발점 차이',.0001,.5,.0001,.01),prm('sp','속도',1,20,1,6,{live:1,fix:1}),prm('rot','회전 속도',0,1,.01,.25,{live:1}),prm('z','확대',3,20,.1,9,{live:1,fix:1})],
+  init(s,p){s.a=0;s.P=[];for(let i=0;i<p.n;i++)s.P.push({x:1+i*p.eps,y:1,z:1+p.rho*.3,pv:null})},
+  proj(q,p,s){const c=Math.cos(s.a),sn=Math.sin(s.a),k=p.z*Math.min(W,H)/560;return [W/2+(q.x*c-q.y*sn)*k,H/2+20-(q.z-p.rho+1)*k]},
+  frame(s,p){s.a+=p.rot*.01;ctx.lineWidth=1.1;const dt=.004;
+    s.P.forEach((q,i)=>{const pv=q.pv||this.proj(q,p,s);ctx.strokeStyle=pal(.15+.85*(p.n>1?i/(p.n-1):.6),.8);ctx.beginPath();ctx.moveTo(pv[0],pv[1]);
+      for(let j=0;j<p.sp*2;j++){const dx=p.sg*(q.y-q.x),dy=q.x*(p.rho-q.z)-q.y,dz=q.x*q.y-p.b*q.z;q.x+=dx*dt;q.y+=dy*dt;q.z+=dz*dt;q.pv=this.proj(q,p,s);ctx.lineTo(q.pv[0],q.pv[1])}ctx.stroke()})}
+},
+boids:{name:'보이드 군집',g:'혼돈·복잡계',trail:78,glow:true,
+  about:'정렬(이웃과 같은 방향), 응집(이웃 쪽으로), 분리(너무 가까우면 멀어짐) 세 규칙만으로 떼가 생깁니다. 색은 진행 방향. 화면을 누르면 그쪽으로 모입니다.',
+  params:[prm('n','개체 수',20,700,1,300,{r:[100,500]}),prm('vis','시야 반경',10,120,1,40,{r:[20,80]}),prm('al','정렬',0,2,.01,1),prm('co','응집',0,2,.01,.6),
+    prm('se','분리',0,3,.01,1.4),prm('vm','최고 속도',1,8,.1,3.2,{r:[2,5]}),prm('w','선 굵기',.3,3,.1,1.2,{live:1,fix:1})],
+  init(s,p){s.B=[];for(let i=0;i<p.n;i++){const a=Math.random()*TAU;s.B.push({x:Math.random()*W,y:Math.random()*H,vx:Math.cos(a)*p.vm,vy:Math.sin(a)*p.vm})}},
+  frame(s,p){const B=s.B,v2=p.vis*p.vis,sd=(p.vis*.4)**2,cs=p.vis,gw=Math.ceil(W/cs)+2,grid=new Map();
+    for(const b of B){const k=((b.x/cs)|0)+((b.y/cs)|0)*gw;let L=grid.get(k);if(!L)grid.set(k,L=[]);L.push(b)}
+    for(const b of B){let ax=0,ay=0,cx=0,cy=0,sx=0,sy=0,c=0;const gx=(b.x/cs)|0,gy=(b.y/cs)|0;
+      for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){const L=grid.get(gx+ox+(gy+oy)*gw);if(!L)continue;
+        for(const o of L){if(o===b)continue;const dx=o.x-b.x,dy=o.y-b.y,d2=dx*dx+dy*dy;if(d2>v2)continue;c++;ax+=o.vx;ay+=o.vy;cx+=dx;cy+=dy;if(d2<sd){sx-=dx/(d2+1);sy-=dy/(d2+1)}}}
+      if(c){b.vx+=(ax/c-b.vx)*.05*p.al+cx/c*.003*p.co+sx*p.se*.8;b.vy+=(ay/c-b.vy)*.05*p.al+cy/c*.003*p.co+sy*p.se*.8}
+      if(ptr.down){const dx=ptr.x-b.x,dy=ptr.y-b.y,d=Math.hypot(dx,dy)+1;b.vx+=dx/d*.25;b.vy+=dy/d*.25}
+      const sp=Math.hypot(b.vx,b.vy)||1,t=Math.min(p.vm,Math.max(p.vm*.5,sp))/sp;b.vx*=t;b.vy*=t}
+    const bins=Array.from({length:16},()=>[]);
+    for(const b of B){const x0=b.x,y0=b.y;b.x+=b.vx;b.y+=b.vy;let wr=false;
+      if(b.x<0){b.x+=W;wr=true}else if(b.x>=W){b.x-=W;wr=true}if(b.y<0){b.y+=H;wr=true}else if(b.y>=H){b.y-=H;wr=true}
+      if(!wr){const h=(Math.atan2(b.vy,b.vx)/TAU+1)%1;bins[h*16|0].push(x0,y0,b.x,b.y)}}
+    ctx.lineWidth=p.w;ctx.lineCap='round';bins.forEach((L,i)=>{if(!L.length)return;ctx.strokeStyle=cyc(i/16,.85);ctx.beginPath();for(let j=0;j<L.length;j+=4){ctx.moveTo(L[j],L[j+1]);ctx.lineTo(L[j+2],L[j+3])}ctx.stroke()})}
+},
+};
+
+/* ---------- 상태 ---------- */
+const saved={};let cur='harmono',P={},st={},running=true,trail=100,glow=true,lastRnd=performance.now(),doneAt=0;
+const $=id=>document.getElementById(id);
+
+function wipe(){ctx.globalCompositeOperation='source-over';ctx.fillStyle=BG;ctx.fillRect(0,0,W,H)}
+function reset(){st={};wipe();doneAt=0;MODES[cur].init(st,P)}
+
+function buildModes(){const box=$('modes');box.innerHTML='';const groups={};
+  for(const [k,m] of Object.entries(MODES))(groups[m.g]=groups[m.g]||[]).push([k,m]);
+  for(const [g,list] of Object.entries(groups)){const d=document.createElement('div');d.className='group';d.innerHTML=`<b>${g}</b>`;
+    const ch=document.createElement('div');ch.className='chips';
+    list.forEach(([k,m])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=m.name;b.dataset.k=k;b.onclick=()=>setMode(k);ch.appendChild(b)});
+    d.appendChild(ch);box.appendChild(d)}}
+
+const fmt=(v,step)=>{const dec=Math.max(0,Math.min(4,-Math.floor(Math.log10(step))));return (+v).toFixed(dec)};
+function buildParams(){const box=$('params'),m=MODES[cur];box.innerHTML='';
+  m.params.forEach(q=>{const row=document.createElement('div');row.className='row';const id='p_'+cur+'_'+q.k;
+    row.innerHTML=`<label for="${id}">${q.l}</label><output id="${id}_o">${fmt(P[q.k],q.step)}</output><input type="range" id="${id}" min="${q.min}" max="${q.max}" step="${q.step}" value="${P[q.k]}">`;
+    const inp=row.querySelector('input'),out=row.querySelector('output');
+    inp.addEventListener('input',()=>{P[q.k]=+inp.value;out.textContent=fmt(P[q.k],q.step);if(!q.live)reset()});
+    box.appendChild(row)})}
+function syncSliders(){MODES[cur].params.forEach(q=>{const id='p_'+cur+'_'+q.k,i=$(id);if(i){i.value=P[q.k];$(id+'_o').textContent=fmt(P[q.k],q.step)}})}
+
+function setMode(k){saved[cur]={P:{...P},trail,glow};cur=k;const m=MODES[k];
+  if(saved[k]){P={...saved[k].P};trail=saved[k].trail;glow=saved[k].glow}else{P={};m.params.forEach(q=>P[q.k]=q.v);trail=m.trail;glow=!!m.glow}
+  document.querySelectorAll('#modes .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===k));
+  $('hudName').textContent=m.name;$('hudAbout').textContent=m.about;buildParams();syncGlobals();lastRnd=performance.now();reset()}
+
+function syncGlobals(){$('trail').value=trail;$('trailOut').textContent=trail>=100?'영구':trail;
+  const g=$('glow');g.disabled=!!MODES[cur].noGlow;g.checked=glow&&!MODES[cur].noGlow;
+  $('trail').disabled=!!MODES[cur].clear}
+
+function buildPals(){const box=$('pals');box.innerHTML='';
+  for(const [n,c] of Object.entries(PALETTES)){const b=document.createElement('button');b.type='button';b.className='pal';b.title=n;b.setAttribute('aria-label','팔레트 '+n);
+    b.style.background=`linear-gradient(90deg,${c.join(',')})`;b.onclick=()=>{setPal(n);if(!MODES[cur].clear)reset()};b.dataset.n=n;box.appendChild(b)}}
+function setPal(n){palName=n;buildLUT();document.querySelectorAll('.pal').forEach(b=>b.setAttribute('aria-pressed',b.dataset.n===n));$('palname').textContent='팔레트: '+n}
+
+function randomize(){const m=MODES[cur];
+  m.params.forEach(q=>{if(q.fix)return;const [lo,hi]=q.r||[q.min,q.max];let v=lo+Math.random()*(hi-lo);v=Math.round(v/q.step)*q.step;P[q.k]=+Math.min(q.max,Math.max(q.min,v)).toFixed(5)});
+  if(Math.random()<.6){const ks=Object.keys(PALETTES).filter(k=>k!==palName);setPal(ks[Math.random()*ks.length|0])}
+  syncSliders();lastRnd=performance.now();reset()}
+
+function togglePause(){running=!running;$('pause').textContent=running?'정지':'재생';$('hudPaused').hidden=running}
+
+/* ---------- 이벤트 ---------- */
+$('rnd').onclick=randomize;$('redo').onclick=reset;$('pause').onclick=togglePause;
+$('trail').oninput=e=>{trail=+e.target.value;$('trailOut').textContent=trail>=100?'영구':trail};
+$('glow').onchange=e=>{glow=e.target.checked};
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='range'&&e.target.type!=='checkbox')return;
+  if(e.code==='Space'){e.preventDefault();togglePause()}else if(e.key==='r'||e.key==='R'||e.key==='ㄱ')randomize();else if(e.key==='c'||e.key==='C'||e.key==='ㅊ')reset()});
+
+/* ---------- 크기 ---------- */
+let rzT=0,lastSize='';
+function resize(){const r=$('stage').getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);const key=Math.round(r.width)+'x'+Math.round(r.height);if(key===lastSize)return;lastSize=key;
+  W=Math.max(1,r.width);H=Math.max(1,r.height);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);reset()}
+new ResizeObserver(()=>{clearTimeout(rzT);rzT=setTimeout(resize,120)}).observe($('stage'));
+
+/* ---------- 루프 ---------- */
+function loop(now){requestAnimationFrame(loop);if(!running)return;const m=MODES[cur];
+  if(m.clear)wipe();else if(trail<100){ctx.globalCompositeOperation='source-over';ctx.fillStyle=`rgba(8,10,14,${(.3*Math.pow(1-trail/100,1.7)).toFixed(4)})`;ctx.fillRect(0,0,W,H)}
+  ctx.globalCompositeOperation=(glow&&!m.noGlow)?'lighter':'source-over';
+  try{m.frame(st,P)}catch(err){console.error(err)}
+  ctx.globalCompositeOperation='source-over';
+  if($('auto').checked){if(st.done&&!doneAt)doneAt=now;if((doneAt&&now-doneAt>2500)||now-lastRnd>15000)randomize()}}
+
+buildModes();buildPals();setPal('오로라');
+{const r=$('stage').getBoundingClientRect();W=r.width||800;H=r.height||600}
+setMode('harmono');resize();requestAnimationFrame(loop);
+})();
+</script>
